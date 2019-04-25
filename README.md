@@ -28,3 +28,11 @@ The message is 1472 bytes divided up into the following:
 - 1458 bytes: message/data
 - 2 bytes: checksum
 - 3 bytes: packet delimiters '|'
+
+## Logic
+
+1. Send a 'start' message to the receiver address that contains msgtype='start' seqno=N data='' checksum=CHECKSUM
+2. Wait for an 'ack' message
+3. Send data using the 'data' messages
+4. Mark each message as successfully sent when the ack is returned.
+5. When all data is sent and acknowledged, send an 'end' packet and close the connection.
