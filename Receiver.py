@@ -8,15 +8,14 @@ import Connection
 
 
 class Receiver:
-    def __init__(self, listenport=33122, debug=False, timeout=10):
-        self.debug = debug
-        self.timeout = timeout
+    def __init__(self, listenport=33122, timeout_t=10):
+        self.timeout = timeout_t
         self.last_cleanup = time.time()
         self.port = listenport
         self.host = ''
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.s.settimeout(timeout)
+        self.s.settimeout(timeout_t)
         self.s.bind((self.host, self.port))
         self.connections = {}  # schema is {(address, port) : Connection}
         self.MESSAGE_HANDLER = {
@@ -29,9 +28,7 @@ class Receiver:
     def start(self):
         while True:
             try:
-                # Receive the message and where it came from
                 message, address = self.receive()
-                # Split the message up into it's appropriate parts
                 msg_type, seqno, data, checksum = self._split_message(message)
                 if debug:
                     print('Received message: {0} {1} {2} {3} {4}'.format(msg_type, seqno, data, sys.getsizeof(data),
@@ -40,8 +37,6 @@ class Receiver:
                     # If the checksum checks out, handle the message using one of the following methods defined by the
                     # MESSAGE_HANDLER dictionary.
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
-                elif self.debug:
-                    print("checksum failed: %s" % message)
 
                 # If the timeout happens, do a cleanup.
                 if time.time() - self.last_cleanup > self.timeout:
@@ -50,10 +45,8 @@ class Receiver:
                 self._cleanup()
             except (KeyboardInterrupt, SystemExit):
                 exit()
-            except ValueError as e:
-                if self.debug:
-                    print(e)
-                pass  # ignore
+            except ValueError:
+                pass
 
     # waits until packet is received to return
     def receive(self):
@@ -74,12 +67,9 @@ class Receiver:
 
     def _handle_start(self, seqno, data, address):
         if not address in self.connections:
-            self.connections[address] = Connection.Connection(address[0], address[1], seqno, data.decode(), self.debug)
+            self.connections[address] = Connection.Connection(address[0], address[1], seqno, data.decode())
         conn = self.connections[address]
         ackno, res_data = conn.ack(seqno, data)
-        for l in res_data:
-            if self.debug:
-                print(data)
         self._send_ack(ackno, address)
 
     # ignore packets from uninitiated connections
@@ -88,8 +78,6 @@ class Receiver:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
             for l in res_data:
-                if self.debug:
-                    print(l)
                 conn.record(l)
             self._send_ack(ackno, address)
 
@@ -99,8 +87,6 @@ class Receiver:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
             for l in res_data:
-                if self.debug:
-                    print(l)
                 conn.record(l)
             self._send_ack(ackno, address)
 
@@ -120,14 +106,10 @@ class Receiver:
         return msg_type.decode(), int(seqno), data, checksum
 
     def _cleanup(self):
-        if self.debug:
-            print("clean up time")
         now = time.time()
         for address in list(self.connections):
             conn = self.connections[address]
             if now - conn.updated > self.timeout:
-                if self.debug:
-                    print("killed connection to %s (%.2f old)" % (address, now - conn.updated))
                 conn.end()
                 del self.connections[address]
         self.last_cleanup = now
@@ -163,5 +145,5 @@ if __name__ == "__main__":
         else:
             print(usage())
             exit()
-    r = Receiver(port, debug, timeout)
+    r = Receiver(port,  timeout)
     r.start()

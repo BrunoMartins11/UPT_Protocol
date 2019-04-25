@@ -2,8 +2,7 @@ import time
 
 
 class Connection:
-    def __init__(self, host, port, start_seq, filename, debug=False):
-        self.debug = debug
+    def __init__(self, host, port, start_seq, filename):
         self.updated = time.time()
         self.current_seqno = start_seq  # expect to ack from the start_seqno
         self.host = host
@@ -30,9 +29,6 @@ class Connection:
                     del self.seqnums[n]
                 else:
                     break  # when we find out of order seqno, quit and move on
-
-        if self.debug:
-            print("next seqno should be %d" % self.current_seqno)
 
         # note: we return the sequence number of the last packet received
         return (self.current_seqno - len(data)), res_data

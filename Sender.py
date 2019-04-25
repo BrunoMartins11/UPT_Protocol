@@ -10,8 +10,7 @@ import Checksum
 
 class Sender:
 
-    def __init__(self, dest, port, filename, debug=False, timeout=10):
-        self.debug = debug
+    def __init__(self, dest, port, filename, timeout=10):
         self.dest = dest
         self.dport = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -132,15 +131,11 @@ class Sender:
                     if Checksum.validate_checksum(message):
                         # Handle the message using one of the methods defined by the MESSAGE_HANDLER dictionary.
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
-                    elif self.debug:
-                        print("checksum failed: %s" % message)
                 else:
                     pass
             except (KeyboardInterrupt, SystemExit):
                 exit()
-            except ValueError as e:
-                if self.debug:
-                    print(e)
+            except ValueError:
                 pass
             except:
                 pass
