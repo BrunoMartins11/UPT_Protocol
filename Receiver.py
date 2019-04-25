@@ -21,9 +21,9 @@ class Receiver:
 
         self.connections = {}
         self.MESSAGE_HANDLER = {
-            'start': self._handle_start,
-            'data': self._handle_data,
-            'end': self._handle_end,
+            'start': self.handle_start,
+            'data': self.handle_data,
+            'end': self.handle_end,
             'ack': self._handle_ack
         }
 
@@ -31,20 +31,20 @@ class Receiver:
         while True:
             try:
                 message, address = self.receive()
-                msg_type, seqno, data, checksum = self._split_message(message)
+                msg_type, seqno, data, checksum = self.split_message(message)
 
                 if Checksum.validate_checksum(message):
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
 
                 # timeout
                 if time.time() - self.last_cleanup >= self.timeout:
-                    self._cleanup()
+                    self.cleanup()
 
                 if self.connections.__len__() == 0:
                     exit()
 
             except socket.timeout:
-                self._cleanup()
+                self.cleanup()
             except (KeyboardInterrupt, SystemExit):
                 exit()
             except ValueError:
@@ -56,34 +56,34 @@ class Receiver:
     def send(self, message, address):
         self.s.sendto(message, address)
 
-    def _send_ack(self, seqno, address):
+    def send_ack(self, seqno, address):
         m = b"".join([b'ack|', bytes(str(seqno).encode()), b'|'])
         checksum = Checksum.generate_checksum(m)
         message = m + checksum
         self.send(message, address)
 
-    def _handle_start(self, seqno, data, address):
+    def handle_start(self, seqno, data, address):
         if address not in self.connections:
             self.connections[address] = Connection.Connection(address[0], address[1], seqno, data.decode())
         conn = self.connections[address]
         ackno, res_data = conn.ack(seqno, data)
-        self._send_ack(ackno, address)
+        self.send_ack(ackno, address)
 
-    def _handle_data(self, seqno, data, address):
+    def handle_data(self, seqno, data, address):
         if address in self.connections:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
             for l in res_data:
                 conn.record(l)
-            self._send_ack(ackno, address)
+            self.send_ack(ackno, address)
 
-    def _handle_end(self, seqno, data, address):
+    def handle_end(self, seqno, data, address):
         if address in self.connections:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
             for l in res_data:
                 conn.record(l)
-            self._send_ack(ackno, address)
+            self.send_ack(ackno, address)
             conn.end()
             del self.connections[address]
 
@@ -95,14 +95,14 @@ class Receiver:
 
     # msg type | seqno | data | checksum |
     @staticmethod
-    def _split_message(message):
+    def split_message(message):
         pieces = message.split(b'|')
         msg_type, seqno = pieces[0:2]  # type seqno
         checksum = pieces[-1]  # checksum
         data = b'|'.join(pieces[2:-1])  # data
         return msg_type.decode(), int(seqno), data, checksum
 
-    def _cleanup(self):
+    def cleanup(self):
         now = time.time()
         for address in list(self.connections):
             conn = self.connections[address]
