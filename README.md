@@ -7,11 +7,7 @@ No snakes were harmed coding this script.
 
 # Ideas while on drugs
 
-- Add proper Go Back N
-- Connection control
 - List files if running as server
-- Download more than one file
-- Error Control
 
 # Ideas when we high as Elon
 
@@ -24,20 +20,11 @@ No snakes were harmed coding this script.
 
 # Ignore
 
-## We high then it passed
+## Message format
 
-
-| Field | Size (bits) |
-|-------|-------------|
-| Seq   | 4 x 8       |
-| AckN  | 4 x 8       |
-| Nack  | 1           |
-| Type  | 4           | SYN ACK FIN RST
-| <b>Total</b> | <b>69</b> |
-| <b>Next Byte alignment</b> | <b>72</b> |
-
-Max Header Size: 512 bytes
-
-Payload:
- - 4027 bits if we don't align bytes
- - 4024 bits (503 bytes) if we align
+The message is 1472 bytes divided up into the following:
+- 5 bytes: msgtype
+- 4 bytes: seqno
+- 1458 bytes: message/data
+- 2 bytes: checksum
+- 3 bytes: packet delimiters '|'
