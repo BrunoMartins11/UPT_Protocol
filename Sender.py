@@ -11,20 +11,13 @@ import Packet
 class Sender:
 
     def __init__(self, dest, port, filename, timeout=10):
-        # 0: Transfer has not started
-        # 1: Transfer is in progress
-        # 2: Transfer is ending
-        # 3: Transfer has ended
         self.current_state = 0
         self.dest = dest
         self.dport = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(None)  # blocking
+        self.sock.settimeout(None)
         self.sock.bind(('', random.randint(10000, 40000)))
-        if filename is None:
-            self.infile = sys.stdin
-        else:
-            self.infile = open(filename, "rb")
+        self.infile = open(filename, "rb")
         self.filesize = 0
         self.msg_window = []
         self.initial_sn = randint(0, 65535)
@@ -32,7 +25,7 @@ class Sender:
         self.rtimeout = timeout
         self.filename = filename
         self.MESSAGE_HANDLER = {
-            'ack': self._handle_ack
+            'ack': self.handle_ack
         }
 
     def receive(self, timeout=None):
@@ -50,6 +43,11 @@ class Sender:
     def start(self):
         self.load_file()
 
+        # 0: Transfer has not started
+        # 1: Transfer is in progress
+        # 2: Transfer is ending
+        # 3: Transfer has ended
+
         while True:
             try:
                 if self.current_state == 0:
@@ -57,10 +55,8 @@ class Sender:
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
                 elif self.current_state == 1:
-                    # Send unacknowledged packets
                     self.send_next_data()
                 elif self.current_state == 2:
-                    # Send the end packet last
                     self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
@@ -134,32 +130,20 @@ class Sender:
             self.increment_state()
         pass
 
-    '''
-    Attempt to send the selected data packet from the sliding window and mark it as sent.
-    '''
-
     def resend_data(self):
         try:
             i = 0
             while i < len(self.msg_window):
-                # If there is a packet to send, send it
                 if self.msg_window[i]:
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
-                    # Set the sent flag for that packet in the sliding window
                     self.msg_window[i][2] = True
                 i += 1
         except:
             pass
 
-    '''
-    Send the next unsent data packet from the sliding window and mark it as sent.
-    '''
-
     def send_next_data(self):
-        # If there is still data unsent
         if len(self.msg_window) > 0:
-            # Check for unsent packets
             packet_to_send = False
             i = 0
             while (not packet_to_send) and (i < len(self.msg_window)):
@@ -168,25 +152,15 @@ class Sender:
                 else:
                     i += 1
 
-            # If there are packets to send, start with the previous unsent packets and send them
             if packet_to_send:
                 while i < len(self.msg_window):
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
-                    # Set the sent flag for that packet in the sliding window
                     self.msg_window[i][2] = True
                     i += 1
         pass
 
-    '''
-    If an acknowledgement packet is received:
-        If the sequence number matches a sent packet in the sliding window:
-            Remove the packet from the sliding window and refresh the sliding window with another packet.
-    '''
-
-    # Handle an 'ack' reply from the server
-    def _handle_ack(self, seqno, data):
-        # If the seqno matches one of the packets in the sliding window
+    def handle_ack(self, seqno, data):
         temp_packet = []
         temp_index = 0
 
@@ -197,11 +171,9 @@ class Sender:
                 break
 
         if len(temp_packet) > 0:
-            # If the packet has been sent previously, accept it
+            # If the packet has been sent previously accept it
             if self.msg_window[temp_index][2]:
-                # Remove the packet from the sliding window list
                 del self.msg_window[temp_index]
-                # Refresh the sliding window
                 self.update_sliding_window()
         pass
 
