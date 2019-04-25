@@ -1,5 +1,3 @@
-# packet.py - Packet-related functions
-
 # Creates a packet from a sequence number and byte data
 def make(seq_num, data = b''):
     seq_bytes = seq_num.to_bytes(4, byteorder = 'little', signed = True)
