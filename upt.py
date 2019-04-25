@@ -1,3 +1,4 @@
+import argparse
 import packet
 import socket
 import sys
@@ -7,9 +8,9 @@ import udt
 
 from timer import Timer
 
-RECEIVER_ADDR = ('192.168.1.140', 8080)
+receiver_addr = ('localhost', 1234)
+sender_addr = ('localhost', 0)
 PACKET_SIZE = 512
-SENDER_ADDR = ('0.0.0.0', 8080)
 SLEEP_INTERVAL = 0.05
 TIMEOUT_INTERVAL = 0.5
 WINDOW_SIZE = 4
@@ -88,7 +89,7 @@ def send_file(sock, filename):
         # Send all the packets in the window
         while next_to_send < base + window_size:
             print('Sending packet', next_to_send)
-            udt.send(packets[next_to_send], sock, RECEIVER_ADDR)
+            udt.send(packets[next_to_send], sock, receiver_addr)
             next_to_send += 1
 
         # Start the timer
@@ -110,7 +111,7 @@ def send_file(sock, filename):
         mutex.release()
 
     # Send empty packet as sentinel
-    udt.send(packet.make_empty(), sock, RECEIVER_ADDR)
+    udt.send(packet.make_empty(), sock, receiver_addr)
     file.close()
 
 
@@ -134,20 +135,27 @@ def receive_ack(sock):
             mutex.release()
 
 
-# Main function
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print('Expected filename as command line argument')
-        exit()
-    if sys.argv[1] == 'send':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--sender", help="run as sender",
+                                           action="store_true")
+    parser.add_argument("-r", "--receiver", help="run as receiver",
+                                               action="store_true")
+    parser.add_argument("-f", "--file", help="file to send/get")
+    args = parser.parse_args()
+
+    if args.sender and args.file:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(SENDER_ADDR)
-        filename = sys.argv[2]
+        sock.bind(sender_addr)
+        filename = args.file
         send_file(sock, filename)
         sock.close()
-    elif sys.argv[1] == 'get':
+    elif args.receiver and args.file:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(RECEIVER_ADDR)
-        filename = sys.argv[2]
+        sock.bind(receiver_addr)
+        filename = args.file
         receive_file(sock, filename)
         sock.close()
+    else:
+        print("Wrong arguments! Run with --help")
+        exit()
