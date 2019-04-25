@@ -27,7 +27,6 @@ class Connection:
                     self.current_seqno += len(data)
                     res_data.append(self.seqnums[n])
                     del self.seqnums[n]
-                else:
                     break  # when we find out of order seqno, quit and move on
 
         # note: we return the sequence number of the last packet received
