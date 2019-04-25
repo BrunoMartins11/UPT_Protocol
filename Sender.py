@@ -5,12 +5,17 @@ import random
 import socket
 from random import randint
 
-import Checksum
+import Packet
 
 
 class Sender:
 
     def __init__(self, dest, port, filename, timeout=10):
+        # 0: Transfer has not started
+        # 1: Transfer is in progress
+        # 2: Transfer is ending
+        # 3: Transfer has ended
+        self.current_state = 0
         self.dest = dest
         self.dport = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -30,8 +35,6 @@ class Sender:
             'ack': self._handle_ack
         }
 
-        # Waits until packet is received to return.
-
     def receive(self, timeout=None):
         self.sock.settimeout(timeout)
         try:
@@ -39,73 +42,18 @@ class Sender:
         except (socket.timeout, socket.error):
             return None
 
-        # Sends a packet to the destination address.
-
     def send(self, message, address=None):
         if address is None:
             address = (self.dest, self.dport)
         self.sock.sendto(message, address)
 
-        # Prepares a packet
-
-    def make_packet(self, msg_type=None, seqno=None, msg=None, packet=None):
-        if msg_type is not None:
-            body = b"".join([msg_type.encode(), b'|', bytes(str(seqno).encode()), b'|', msg, b'|'])
-            checksum = Checksum.generate_checksum(body)
-            return_packet = body + checksum
-            return return_packet
-        else:
-            body = b"".join([packet[0].encode(), b'|', bytes(str(packet[1]).encode()), b'|', packet[2], b'|'])
-            checksum = Checksum.generate_checksum(body)
-            return_packet = body + checksum
-            return return_packet
-
-    def split_packet(self, message):
-        pieces = message.split(b'|')
-        msg_type, seqno = pieces[0:2]  # first two elements always treated as msg type and seqno
-        checksum = pieces[-1]  # last is always treated as checksum
-        data = b'|'.join(pieces[2:-1])  # everything in between is considered data
-        return msg_type.decode(), int(seqno), data, checksum
-
-    '''
-    Main sender loop:
-    1. Send a 'start' message to the specified receiver address that contains the following:
-        msgtype='start' seqno=N data='' chksum=CHECKSUM
-        where N = random initial integer within given range and CHECKSUM is the calculated checksum for the entire
-        message packet (minus the checksum itself).
-    2. Wait for an 'ack' message to return and verify that the host received the 'start'.
-    3. Continue sending data using the 'data' message types; mark each as successfully sent  when the ack is returned.
-        The above could be implemented as a 2D array: x=data y=acknowledged flag
-        The 2D array could also have a list that pulls from the 2D array that acts as the sliding window.
-    4. When all data is sent and acknowledged, send an 'end' packet and close the connection.
-
-    Message format:
-    The message is 1472 bytes divided up into the following:
-    5 bytes: msgtype (to accomodate 'start' flag)
-    4 bytes: seqno
-    1458 bytes: message/data
-    2 bytes: checksum
-    3 bytes: packet delimiters '|'
-    '''
-
     def start(self):
         self.load_file()
 
-        # State tracking variable:
-        # 0: Transfer has not started
-        # 1: Transfer is in progress
-        # 2: Transfer is ending
-        # 3: Transfer has ended
-        self.current_state = 0
-
-        # Main loop.
         while True:
-            # state_options[self.current_state]()
             try:
                 if self.current_state == 0:
-                    # Send initial start message
-                    # msgtype|seqno|data|checksum
-                    self.send(self.make_packet('start', self.msg_window[0][0], self.msg_window[0][1]),
+                    self.send(Packet.make_packet('start', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
                 elif self.current_state == 1:
@@ -113,30 +61,22 @@ class Sender:
                     self.send_next_data()
                 elif self.current_state == 2:
                     # Send the end packet last
-                    self.send(self.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
+                    self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
-                else:
-                    # Exit the program
+                elif self.current_state == 3:
                     exit()
 
-                # Receive the message and where it came from
                 message = self.receive(self.rtimeout)
 
-                # if a message is received
                 if message:
-                    # Split the received packet up into it's individual parts
-                    msg_type, seqno, data, checksum = self.split_packet(message)
-                    # If the message contains no errors
-                    if Checksum.validate_checksum(message):
-                        # Handle the message using one of the methods defined by the MESSAGE_HANDLER dictionary.
+                    msg_type, seqno, data, checksum = Packet.split_packet(message)
+                    if Packet.validate_checksum(message):
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
                     pass
             except (KeyboardInterrupt, SystemExit):
                 exit()
-            except ValueError:
-                pass
             except:
                 pass
 
@@ -204,7 +144,7 @@ class Sender:
             while i < len(self.msg_window):
                 # If there is a packet to send, send it
                 if self.msg_window[i]:
-                    self.send(self.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
+                    self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     # Set the sent flag for that packet in the sliding window
                     self.msg_window[i][2] = True
@@ -231,7 +171,7 @@ class Sender:
             # If there are packets to send, start with the previous unsent packets and send them
             if packet_to_send:
                 while i < len(self.msg_window):
-                    self.send(self.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
+                    self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     # Set the sent flag for that packet in the sliding window
                     self.msg_window[i][2] = True
@@ -263,20 +203,12 @@ class Sender:
                 del self.msg_window[temp_index]
                 # Refresh the sliding window
                 self.update_sliding_window()
-        # if the seqno doesn't match anything in the sliding window, ignore it.
         pass
 
-    # handler for packets with unrecognized type
     def _handle_other(self, seqno, data):
-        # Not sure if anything should go here... Just ignore them... it'll be fine... I think...
         pass
 
 
-'''
-This will be run if you run this script from the command line. You should not
-change any of this; the grader may rely on the behavior here to test your
-submission.
-'''
 if __name__ == "__main__":
     def usage():
         print("Sender")

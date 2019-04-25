@@ -3,7 +3,7 @@ import socket
 import sys
 import time
 
-import Checksum
+import Packet
 import Connection
 
 
@@ -31,9 +31,9 @@ class Receiver:
         while True:
             try:
                 message, address = self.receive()
-                msg_type, seqno, data, checksum = self.split_message(message)
+                msg_type, seqno, data, checksum = Packet.split_packet(message)
 
-                if Checksum.validate_checksum(message):
+                if Packet.validate_checksum(message):
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
 
                 # timeout
@@ -58,7 +58,7 @@ class Receiver:
 
     def send_ack(self, seqno, address):
         m = b"".join([b'ack|', bytes(str(seqno).encode()), b'|'])
-        checksum = Checksum.generate_checksum(m)
+        checksum = Packet.generate_checksum(m)
         message = m + checksum
         self.send(message, address)
 
@@ -92,15 +92,6 @@ class Receiver:
 
     def _handle_other(self, seqno, data, address):
         pass
-
-    # msg type | seqno | data | checksum |
-    @staticmethod
-    def split_message(message):
-        pieces = message.split(b'|')
-        msg_type, seqno = pieces[0:2]  # type seqno
-        checksum = pieces[-1]  # checksum
-        data = b'|'.join(pieces[2:-1])  # data
-        return msg_type.decode(), int(seqno), data, checksum
 
     def cleanup(self):
         now = time.time()
