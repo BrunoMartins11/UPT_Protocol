@@ -42,10 +42,10 @@ class Sender:
     def start(self):
         self.load_file()
 
-        # 0: Transfer has not started
-        # 1: Transfer is in progress
-        # 2: Transfer is ending
-        # 3: Transfer has ended
+        # 0: Transfer not started
+        # 1: Transfer in progress
+        # 2: Transfer ending
+        # 3: Transfer ended
 
         while True:
             try:
