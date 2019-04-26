@@ -1,6 +1,5 @@
-import getopt
+import argparse
 import socket
-import sys
 import time
 
 import Packet
@@ -104,34 +103,11 @@ class Receiver:
 
 
 if __name__ == "__main__":
-    def usage():
-        print("BEARS-TP Receiver")
-        print("-p PORT | --port=PORT The listen port, defaults to 33122")
-        print("-t TIMEOUT | --timeout=TIMEOUT Receiver timeout in seconds")
-        print("-d | --debug Print debug messages")
-        print("-h | --help Print this usage message")
+    parser = argparse.ArgumentParser(description="Receive files via a fast and secure UDP channel.",
+                                     epilog="Unicorns powered this")
+    parser.add_argument("-p", "--port", help="UDP port, defaults to 33122", type=int, default=33122)
+    parser.add_argument("-t", "--timeout", help="Timeout for each socket, defaults to 3s", type=int, default=3)
+    args = parser.parse_args()
 
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:],
-                                   "p:dt:", ["port=", "debug=", "timeout="])
-    except:
-        usage()
-        exit()
-
-    port = 33122
-    debug = False
-    timeout = 10
-
-    for o, a in opts:
-        if o in ("-p", "--port="):
-            port = int(a)
-        elif o in ("-t", "--timeout="):
-            timeout = int(a)
-        elif o in ("-d", "--debug="):
-            debug = True
-        else:
-            print(usage())
-            exit()
-    r = Receiver(port, timeout)
+    r = Receiver(args.port, args.timeout)
     r.start()

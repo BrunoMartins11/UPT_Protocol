@@ -1,6 +1,5 @@
-import getopt
+import argparse
 import os
-import sys
 import random
 import socket
 from random import randint
@@ -80,13 +79,11 @@ class Sender:
         self.current_state += 1
 
     def load_file(self):
-        # Read in a file and split the input file into data chunks and return data chunks.
-        # The file is converted to a bytestream that reads in the file, either reading in only what is necessary and
-        # putting that into the msg_window, or reading in the entire file into a 2D list where each element represents
-        # a (data (bytearray), seqno (int), sent (bool)) data pair. The seqno is set here to the initial value
-        # and incremented by the number of bytes in the current packet.
+        # (data (bytearray), seqno (int), sent (bool))
+        # seqno incremented by the number of bytes in the current packet.
 
-        # create the first packet, reset the initial sn so that things are in order from now on
+        # first packet
+        # reset initial sn
         self.msg_window.append([self.current_sn, self.filename.encode('utf-8'), False])
         self.initial_sn += len(self.filename.encode('utf-8'))
         self.current_sn = self.initial_sn
@@ -94,7 +91,6 @@ class Sender:
         with open(self.filename, 'rb') as sending_file:
             self.filesize = os.stat(self.filename).st_size
 
-            # if the window is not full, and there is still more data in the file to retrieve
             while (self.msg_window.__len__() < 5) and (self.filesize > (self.current_sn - self.initial_sn)):
                 sending_file.seek(self.current_sn - self.initial_sn)
                 next_packet = sending_file.read(1458)
@@ -102,10 +98,11 @@ class Sender:
                 self.current_sn += len(next_packet)
 
             if self.msg_window.__len__() < 5:
-                # If the file is super small, may need to append an 'end' packet in this step
                 packet_size = len(self.msg_window[self.msg_window.__len__() - 1][1])
-                self.current_sn += packet_size
-                self.msg_window.append([self.current_sn, '', False])  # 'end' packet
+                while self.msg_window.__len__() < 5:
+                    print("l")
+                    self.current_sn += packet_size
+                    self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
 
     def update_sliding_window(self):
         with open(self.filename, 'rb') as sending_file:
@@ -119,13 +116,10 @@ class Sender:
                     self.msg_window.append([self.current_sn, next_packet, False])
                     self.current_sn += len(next_packet)
             else:
-                # If the window does not need updated, keep running...
                 pass
 
-        # Check to see if this is the first packet (start)
         if self.current_state == 0:
             self.increment_state()
-        # Check to see if there is only one packet left in the window
         if self.msg_window.__len__() <= 1:
             self.increment_state()
         pass
@@ -171,7 +165,7 @@ class Sender:
                 break
 
         if len(temp_packet) > 0:
-            # If the packet has been sent previously accept it
+            # if the packet has been sent previously accept it
             if self.msg_window[temp_index][2]:
                 del self.msg_window[temp_index]
                 self.update_sliding_window()
@@ -182,38 +176,14 @@ class Sender:
 
 
 if __name__ == "__main__":
-    def usage():
-        print("Sender")
-        print("-f FILE | --file=FILE The file to transfer; if empty reads from STDIN")
-        print("-p PORT | --port=PORT The destination port, defaults to 33122")
-        print("-a ADDRESS | --address=ADDRESS The receiver address or hostname, defaults to localhost")
-        print("-d | --debug Print debug messages")
-        print("-h | --help Print this usage message")
+    parser = argparse.ArgumentParser(description="Send files via a fast and secure UDP channel.",
+                                     epilog="Unicorns powered this")
+    parser.add_argument("-f", "--file", help="File to send", required=True)
+    parser.add_argument("-p", "--port", help="UDP port, defaults to 33122", type=int, default=33122)
+    parser.add_argument("-a", "--address", help="Receiver's address, defaults to localhost", default="localhost")
+    args = parser.parse_args()
 
-
-    try:
-        opts, args = getopt.getopt(sys.argv[1:],
-                                   "f:p:a:d", ["file=", "port=", "address=", "debug="])
-    except:
-        usage()
-        exit()
-
-    port = 33122
-    dest = "localhost"
-    filename = None
-    debug = False
-
-    for o, a in opts:
-        if o in ("-f", "--file="):
-            filename = a
-        elif o in ("-p", "--port="):
-            port = int(a)
-        elif o in ("-a", "--address="):
-            dest = a
-        elif o in ("-d", "--debug="):
-            debug = True
-
-    s = Sender(dest, port, filename)
+    s = Sender(args.address, args.port, args.file)
     try:
         s.start()
     except (KeyboardInterrupt, SystemExit):

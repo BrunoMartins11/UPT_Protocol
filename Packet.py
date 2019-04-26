@@ -33,7 +33,6 @@ def split_packet(message):
     return msg_type.decode(), int(seqno), data, checksum
 
 
-# last field is the checksum
 def validate_checksum(message):
     try:
         msg, reported_checksum = message.rsplit(b'|', 1)
@@ -43,7 +42,5 @@ def validate_checksum(message):
         return False
 
 
-# message does NOT contain final checksum field
-# message ends with '|'.
 def generate_checksum(message):
     return str(binascii.crc32(message) & 0xffffffff).encode()
