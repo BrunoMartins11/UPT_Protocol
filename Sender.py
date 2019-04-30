@@ -38,8 +38,7 @@ class Sender:
     def send(self, message, address=None):
         if address is None:
             address = (self.dest, self.dport)
-        if random.randint(0, 1) > 0:
-            self.sock.sendto(message, address)
+        self.sock.sendto(message, address)
 
     def start(self):
         self.load_file()
@@ -62,9 +61,7 @@ class Sender:
                     self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
-                    print("FIM")
                 elif self.current_state >= 3:
-                    print("Normal exit")
                     exit()
 
                 message = self.receive(self.rtimeout)
@@ -87,7 +84,7 @@ class Sender:
         self.current_state += 1
 
     def load_file(self):
-        # (data (bytearray), seqno (int), sent (bool))
+        # (eqno, data, sent)
         # seqno incremented by the number of bytes in the current packet.
 
         # first packet
@@ -106,15 +103,11 @@ class Sender:
                 self.current_sn += len(next_packet)
 
             if self.msg_window.__len__() < 5:
-                packet_size = len(self.msg_window[self.msg_window.__len__() - 1][1])
-                self.current_sn += packet_size
                 self.msg_window.append([self.current_sn, b'', False]) # 'end' packet
 
     def update_sliding_window(self):
         with open(self.filename, 'rb') as sending_file:
-            # check to see if the window is full
             if self.msg_window.__len__() < 5:
-                # if the window is not full, and there is still more data in the file to retrieve
                 while ((self.msg_window.__len__() < 5) and
                        (self.filesize > (self.current_sn - self.initial_sn))):
                     sending_file.seek(self.current_sn - self.initial_sn)
@@ -126,7 +119,7 @@ class Sender:
 
         if self.current_state == 0:
             self.increment_state()
-        if self.current_state.__len__() <= 1:
+        if self.msg_window.__len__() <= 1:
             self.increment_state()
         pass
 
@@ -135,12 +128,10 @@ class Sender:
             i = 0
             while i < len(self.msg_window):
                 if self.msg_window[i][2]:
-                    print("sent seqo resent: " + str(self.msg_window[i][0]))
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     self.msg_window[i][2] = True
                 i += 1
-            print("All sent in resent")
         except:
             pass
 
@@ -156,7 +147,6 @@ class Sender:
 
             if packet_to_send:
                 while i < len(self.msg_window):
-                    print("sent seqo normal: " + str(self.msg_window[i][0]))
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     self.msg_window[i][2] = True

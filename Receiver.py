@@ -58,11 +58,7 @@ class Receiver:
         m = b"".join([b'ack|', bytes(str(seqno).encode()), b'|'])
         checksum = Packet.generate_checksum(m)
         message = m + checksum
-        if(random.randint(0, 1) > 0):
-            self.send(message, address)
-            print("Sent ack " + str(seqno))
-        else:
-            print("Did not sent ack " + str(seqno))
+        self.send(message, address)
 
     def handle_start(self, seqno, data, address):
         if address not in self.connections:
@@ -80,7 +76,6 @@ class Receiver:
             self.send_ack(ackno, address)
 
     def handle_end(self, seqno, data, address):
-        print("Why")
         if address in self.connections:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
