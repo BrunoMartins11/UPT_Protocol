@@ -23,8 +23,13 @@ class Connection:
                     del self.seqnums[n]
                     break
 
+        elif(seqno < self.current_seqno) and self.seqnums.__len__() <= self.max_buf_size:
+            self.updated = time.time()
+            return seqno, res_data
+
         # return seqno of the last packet received
         return (self.current_seqno - len(data)), res_data
+
 
     def record(self, data):
         self.outfile.write(data)

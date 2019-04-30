@@ -1,9 +1,9 @@
 import argparse
 import os
 import random
-import socket
 from random import randint
-
+import socket
+import time
 import Packet
 
 
@@ -23,6 +23,7 @@ class Sender:
         self.current_sn = self.initial_sn
         self.rtimeout = timeout
         self.filename = filename
+        self.last_cleanup = time.time()
         self.MESSAGE_HANDLER = {
             'ack': self.handle_ack
         }
@@ -37,10 +38,12 @@ class Sender:
     def send(self, message, address=None):
         if address is None:
             address = (self.dest, self.dport)
-        self.sock.sendto(message, address)
-        print("Sent data")
+        if random.randint(0, 1) > 0:
+            self.sock.sendto(message, address)
+
     def start(self):
         self.load_file()
+        self.last_cleanup = time.time()
 
         # 0: Transfer has not started
         # 1: Transfer is in progress
@@ -53,14 +56,15 @@ class Sender:
                     self.send(Packet.make_packet('start', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
-                    print("Sent start")
                 elif self.current_state == 1:
                     self.send_next_data()
                 elif self.current_state == 2:
                     self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
-                elif self.current_state == 3:
+                    print("FIM")
+                elif self.current_state >= 3:
+                    print("Normal exit")
                     exit()
 
                 message = self.receive(self.rtimeout)
@@ -70,6 +74,9 @@ class Sender:
                     if Packet.validate_checksum(message):
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
+                    if time.time() - self.last_cleanup  >= 3 + self.rtimeout:
+                        self.resend_data()
+                        self.last_cleanup = time.now()
                     pass
             except (KeyboardInterrupt, SystemExit):
                 exit()
@@ -101,7 +108,7 @@ class Sender:
             if self.msg_window.__len__() < 5:
                 packet_size = len(self.msg_window[self.msg_window.__len__() - 1][1])
                 self.current_sn += packet_size
-                self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
+                self.msg_window.append([self.current_sn, b'', False]) # 'end' packet
 
     def update_sliding_window(self):
         with open(self.filename, 'rb') as sending_file:
@@ -119,7 +126,7 @@ class Sender:
 
         if self.current_state == 0:
             self.increment_state()
-        if self.msg_window.__len__() <= 1:
+        if self.current_state.__len__() <= 1:
             self.increment_state()
         pass
 
@@ -127,11 +134,13 @@ class Sender:
         try:
             i = 0
             while i < len(self.msg_window):
-                if self.msg_window[i]:
+                if self.msg_window[i][2]:
+                    print("sent seqo resent: " + str(self.msg_window[i][0]))
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     self.msg_window[i][2] = True
                 i += 1
+            print("All sent in resent")
         except:
             pass
 
@@ -147,6 +156,7 @@ class Sender:
 
             if packet_to_send:
                 while i < len(self.msg_window):
+                    print("sent seqo normal: " + str(self.msg_window[i][0]))
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     self.msg_window[i][2] = True
@@ -154,7 +164,6 @@ class Sender:
         pass
 
     def handle_ack(self, seqno, data):
-        print("Got ack")
         temp_packet = []
         temp_index = 0
 
@@ -169,6 +178,7 @@ class Sender:
             if self.msg_window[temp_index][2]:
                 del self.msg_window[temp_index]
                 self.update_sliding_window()
+                self.last_cleanup = time.time()
         pass
 
     def _handle_other(self, seqno, data):
