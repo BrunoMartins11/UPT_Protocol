@@ -62,6 +62,7 @@ class Receiver:
         self.send(message, address)
 
     def handle_start(self, seqno, data, address):
+        print("Got a start")
         if address not in self.connections:
             self.connections[address] = Connection.Connection(address[0], address[1], seqno, data.decode())
         conn = self.connections[address]
@@ -69,6 +70,7 @@ class Receiver:
         self.send_ack(ackno, address)
 
     def handle_data(self, seqno, data, address):
+        print("Got data")
         if address in self.connections:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
@@ -77,6 +79,7 @@ class Receiver:
             self.send_ack(ackno, address)
 
     def handle_end(self, seqno, data, address):
+        print("Got end")
         if address in self.connections:
             conn = self.connections[address]
             ackno, res_data = conn.ack(seqno, data)
@@ -87,6 +90,7 @@ class Receiver:
             del self.connections[address]
 
     def _handle_ack(self, seqno, data, address):
+        print("Got ack")
         pass
 
     def _handle_other(self, seqno, data, address):

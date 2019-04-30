@@ -9,7 +9,7 @@ import Packet
 
 class Sender:
 
-    def __init__(self, dest, port, filename, timeout=10):
+    def __init__(self, dest, port, filename, timeout=3):
         self.current_state = 0
         self.dest = dest
         self.dport = port
@@ -38,7 +38,7 @@ class Sender:
         if address is None:
             address = (self.dest, self.dport)
         self.sock.sendto(message, address)
-
+        print("Sent data")
     def start(self):
         self.load_file()
 
@@ -53,6 +53,7 @@ class Sender:
                     self.send(Packet.make_packet('start', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
+                    print("Sent start")
                 elif self.current_state == 1:
                     self.send_next_data()
                 elif self.current_state == 2:
@@ -99,10 +100,8 @@ class Sender:
 
             if self.msg_window.__len__() < 5:
                 packet_size = len(self.msg_window[self.msg_window.__len__() - 1][1])
-                while self.msg_window.__len__() < 5:
-                    print("l")
-                    self.current_sn += packet_size
-                    self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
+                self.current_sn += packet_size
+                self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
 
     def update_sliding_window(self):
         with open(self.filename, 'rb') as sending_file:
@@ -155,6 +154,7 @@ class Sender:
         pass
 
     def handle_ack(self, seqno, data):
+        print("Got ack")
         temp_packet = []
         temp_index = 0
 
