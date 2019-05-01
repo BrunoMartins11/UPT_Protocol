@@ -27,14 +27,12 @@ class ClientThread(Thread):
                 address = data[1]
                 port = data[2]
                 filename = data[3]
-                # print("Sending to {} on port {} => {}".format(address, port, filename))
                 Sender(address, int(port), filename).start()
                 out = b'Sent'
             elif data[0] == 'put':
                 port = randint(10000, 40000)
                 cmd = 'Receiving_on: localhost {}'.format(port)
                 self.socket.send(str.encode(cmd))
-                # print("Receiving on port {}".format(port))
                 Receiver(port, 3).start()
                 out = b'Received'
             else:
