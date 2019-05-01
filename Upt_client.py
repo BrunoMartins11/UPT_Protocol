@@ -15,11 +15,13 @@ def client(port):
             timeout = 3
             request = "get {} {} {}".format(address, port, cmd[1])
             sock.send(str.encode(request))
+            # print("Receiving on port {}".format(port))
             Receiver(port, timeout).start()
         elif cmd[0] == 'put':
             sock.send(str.encode(cmd[0]))
             response = sock.recv(4096).decode("utf-8")
             response = response.split(" ")
+            # print("Sending to {} on port {} => {}".format(response[1], response[2], cmd[1]))
             Sender(response[1], int(response[2]), cmd[1]).start()
         else:
             sock.send(str.encode(" ".join(cmd)))
