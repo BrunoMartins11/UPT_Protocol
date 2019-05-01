@@ -1,7 +1,6 @@
 import argparse
 import socket
 import time
-import random
 import Packet
 import Connection
 

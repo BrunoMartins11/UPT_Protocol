@@ -44,10 +44,10 @@ class Sender:
         self.load_file()
         self.last_cleanup = time.time()
 
-        # 0: Transfer has not started
-        # 1: Transfer is in progress
-        # 2: Transfer is ending
-        # 3: Transfer has ended
+        # 0: Transfer not started
+        # 1: Transfer in progress
+        # 2: Transfer ending
+        # 3: Transfer ended
 
         while True:
             try:
@@ -71,9 +71,9 @@ class Sender:
                     if Packet.validate_checksum(message):
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
-                    if time.time() - self.last_cleanup  >= 3 + self.rtimeout:
+                    if time.time() - self.last_cleanup >= 3 + self.rtimeout:
                         self.resend_data()
-                        self.last_cleanup = time.now()
+                        self.last_cleanup = time.time()
                     pass
             except (KeyboardInterrupt, SystemExit):
                 exit()
