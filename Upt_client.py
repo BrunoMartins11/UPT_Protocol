@@ -14,13 +14,12 @@ def client(port):
             address = "localhost"
             timeout = 3
             request = "get {} {} {}".format(address, port, cmd[1])
-            print("Sending: {}".format(request))
             sock.send(str.encode(request))
             Receiver(port, timeout).start()
         elif cmd[0] == 'put':
             sock.send(str.encode(cmd[0]))
-            response = sock.recv(4096).decode("utf-8").split(" ")
-            print(" ".join(response))
+            response = sock.recv(4096).decode("utf-8")
+            response = response.split(" ")
             Sender(response[1], int(response[2]), cmd[1]).start()
         else:
             sock.send(str.encode(" ".join(cmd)))

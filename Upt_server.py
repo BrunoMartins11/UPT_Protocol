@@ -9,23 +9,6 @@ from Receiver import Receiver
 def run_ls(args):
     return check_output(args)
 
-def get_file(args):
-    port = int(args[0])
-    timeout = int(args[1])
-    Receiver(port, timeout).start()
-
-def send_file(args):
-    port = int(args[0])
-    timeout = int(args[1])
-    filename = args[2]
-    Sender(port, timeout, filename).start()
-
-cmds = {
-    "ls": lambda a: run_ls(["ls"] + a),
-    "get": lambda a: get_file(a),
-    "put": lambda a: put_file(a)
-    }
-
 class ClientThread(Thread):
     def __init__(self, socket):
         Thread.__init__(self)
@@ -44,14 +27,12 @@ class ClientThread(Thread):
                 address = data[1]
                 port = data[2]
                 filename = data[3]
-                print("Sending file: {} {} {}".format(address, port, filename))
                 Sender(address, port, filename).start()
                 out = b'Sent'
             elif data[0] == 'put':
                 port = randint(10000, 40000)
                 cmd = 'Receiving_on: localhost {}'.format(port)
                 self.socket.send(cmd)
-                print("Receiving file: {}".format(port))
                 Receiver(port, 3).start()
                 out = b'Received'
             else:
