@@ -42,11 +42,11 @@ def server(directory='.'):
             port = int(data[2])
             filename = data[3]
             ClientThread(lambda: Sender(address, port, filename).start()).start()
-            out = b'Sent'
+            out = b'Sending'
         elif data[0] == 'put':
             port = int(data[1])
             ClientThread(lambda: Receiver(port, 3).start()).start()
-            out = b'Received'
+            out = b'Receiving'
         else:
             out = b'Invalid command'
         sock.sendto(out, client_address)

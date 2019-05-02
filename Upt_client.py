@@ -9,22 +9,25 @@ def client(address, port):
     while True:
         cmd = input("> ")
         cmd = cmd.split(" ")
+        request = ''
+        action = None
         if cmd[0] == 'get':
             port = randint(10000,40000)
             timeout = 3
             request = "get {} {} {}".format(address, port, cmd[1])
-            print("REQUESTING: {}".format(request))
-            sock.send(str.encode(request))
-            Receiver(port, timeout).start()
+            action = lambda: Receiver(port, timeout).start()
         elif cmd[0] == 'put':
             port = randint(10000,40000)
-            request = str.encode('put {}'.format(port))
-            print("REQUESTING: {}".format(request))
-            sock.send(request)
-            Sender(address, port, cmd[1]).start()
-        else:
-            sock.send(str.encode(" ".join(cmd)))
-        if cmd[0] == 'exit':
+            request = 'put {}'.format(port)
+            action = lambda: Sender(address, port, cmd[1]).start()
+        elif cmd[0] == 'exit':
             break
+        else:
+            request = " ".join(cmd)
+
+        print("REQUESTING: {}".format(request))
+        sock.send(str.encode(request))
+        if action is not None:
+            action()
         print(sock.recv(4096).decode("utf-8"))
 
