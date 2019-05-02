@@ -17,7 +17,8 @@ if __name__ == '__main__':
             i = '0'
         elif i == '2':
             port = int(input("Port number? "))
-            client(port)
+            address = 'localhost'
+            client(address, port)
             i = '0'
 
         if i == '0':

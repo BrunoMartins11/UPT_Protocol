@@ -1,48 +1,24 @@
 import socket
 from random import randint
-from subprocess import check_output
+import subprocess
 import os
 from threading import Thread
 from Sender import Sender
 from Receiver import Receiver
 
 def run_ls(args):
-    return check_output(args)
+    return subprocess.check_output(args)
 
 class ClientThread(Thread):
-    def __init__(self, socket):
+    def __init__(self, func):
         Thread.__init__(self)
-        self.socket = socket
+        self.func = func
 
     def run(self):
-        while True:
-            data = str(self.socket.recv(4096).decode("utf-8"))
-            print("MESSAGE RECEIVED: {}".format(data))
-            data = data.split(" ")
-            if data[0] == 'exit':
-                break
-            if data[0] == 'ls':
-                out = run_ls(data)
-            elif data[0] == 'get':
-                address = data[1]
-                port = data[2]
-                filename = data[3]
-                Sender(address, int(port), filename).start()
-                out = b'Sent'
-            elif data[0] == 'put':
-                port = randint(10000, 40000)
-                cmd = 'Receiving_on: localhost {}'.format(port)
-                self.socket.send(str.encode(cmd))
-                Receiver(port, 3).start()
-                out = b'Received'
-            else:
-                out = b'Invalid command'
-            self.socket.send(out)
-        self.socket.close()
-
+        self.func()
 
 def server(directory='.'):
-    sock = socket.socket()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     bound = False
     port = 0
     while not bound:
@@ -55,8 +31,23 @@ def server(directory='.'):
         bound = True
     print('Server started on port: {}'.format(port))
     os.chdir(directory)
-    sock.listen(10)
     while True:
-        conn, addr = sock.accept()
-        ClientThread(conn).start()
+        payload, client_address = sock.recvfrom(4096)
+        print("MESSAGE RECEIVED: {}".format(payload))
+        data = payload.decode('utf-8').split(" ")
+        if data[0] == 'ls':
+            out = run_ls(data)
+        elif data[0] == 'get':
+            address = data[1]
+            port = int(data[2])
+            filename = data[3]
+            ClientThread(lambda: Sender(address, port, filename).start()).start()
+            out = b'Sent'
+        elif data[0] == 'put':
+            port = int(data[1])
+            ClientThread(lambda: Receiver(port, 3).start()).start()
+            out = b'Received'
+        else:
+            out = b'Invalid command'
+        sock.sendto(out, client_address)
 
