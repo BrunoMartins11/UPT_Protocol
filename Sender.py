@@ -1,15 +1,16 @@
-import argparse
 import os
-import random
+
 import socket
+
+import random
 from random import randint
+import argparse
 
 import Packet
 
 
 class Sender:
-
-    def __init__(self, dest, port, filename, timeout=10):
+    def __init__(self, dest, port, filename, timeout_t=10, attempts_n=5):
         self.current_state = 0
         self.dest = dest
         self.dport = port
@@ -18,11 +19,12 @@ class Sender:
         self.sock.bind(('', random.randint(10000, 40000)))
         self.infile = open(filename, "rb")
         self.filesize = 0
-        self.msg_window = []
+        self.msg_window = []  # [[eqno, data, sent]]
         self.initial_sn = randint(0, 65535)
         self.current_sn = self.initial_sn
-        self.rtimeout = timeout
+        self.rtimeout = timeout_t
         self.filename = filename
+        self.attempts = attempts_n
         self.MESSAGE_HANDLER = {
             'ack': self.handle_ack
         }
@@ -42,10 +44,10 @@ class Sender:
     def start(self):
         self.load_file()
 
-        # 0: Transfer has not started
-        # 1: Transfer is in progress
-        # 2: Transfer is ending
-        # 3: Transfer has ended
+        # 0: Transfer not started
+        # 1: Transfer in progress
+        # 2: Transfer ending
+        # 3: Transfer ended
 
         while True:
             try:
@@ -59,7 +61,7 @@ class Sender:
                     self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
-                elif self.current_state == 3:
+                elif self.current_state >= 3:
                     exit()
 
                 message = self.receive(self.rtimeout)
@@ -69,7 +71,12 @@ class Sender:
                     if Packet.validate_checksum(message):
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
-                    pass
+                    self.resend_data()
+                    self.attempts -= 1
+
+                if self.attempts <= 0:
+                    exit()
+
             except (KeyboardInterrupt, SystemExit):
                 exit()
             except:
@@ -79,11 +86,8 @@ class Sender:
         self.current_state += 1
 
     def load_file(self):
-        # (data (bytearray), seqno (int), sent (bool))
-        # seqno incremented by the number of bytes in the current packet.
+        # seqno += number of bytes in the current packet
 
-        # first packet
-        # reset initial sn
         self.msg_window.append([self.current_sn, self.filename.encode('utf-8'), False])
         self.initial_sn += len(self.filename.encode('utf-8'))
         self.current_sn = self.initial_sn
@@ -98,17 +102,11 @@ class Sender:
                 self.current_sn += len(next_packet)
 
             if self.msg_window.__len__() < 5:
-                packet_size = len(self.msg_window[self.msg_window.__len__() - 1][1])
-                while self.msg_window.__len__() < 5:
-                    print("l")
-                    self.current_sn += packet_size
-                    self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
+                self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
 
     def update_sliding_window(self):
         with open(self.filename, 'rb') as sending_file:
-            # check to see if the window is full
             if self.msg_window.__len__() < 5:
-                # if the window is not full, and there is still more data in the file to retrieve
                 while ((self.msg_window.__len__() < 5) and
                        (self.filesize > (self.current_sn - self.initial_sn))):
                     sending_file.seek(self.current_sn - self.initial_sn)
@@ -128,7 +126,7 @@ class Sender:
         try:
             i = 0
             while i < len(self.msg_window):
-                if self.msg_window[i]:
+                if self.msg_window[i][2]:
                     self.send(Packet.make_packet('data', self.msg_window[i][0], self.msg_window[i][1]),
                               (self.dest, self.dport))
                     self.msg_window[i][2] = True
@@ -165,7 +163,6 @@ class Sender:
                 break
 
         if len(temp_packet) > 0:
-            # if the packet has been sent previously accept it
             if self.msg_window[temp_index][2]:
                 del self.msg_window[temp_index]
                 self.update_sliding_window()
@@ -181,6 +178,9 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--file", help="File to send", required=True)
     parser.add_argument("-p", "--port", help="UDP port, defaults to 33122", type=int, default=33122)
     parser.add_argument("-a", "--address", help="Receiver's address, defaults to localhost", default="localhost")
+    parser.add_argument("-n", "--number", help="Number of attempts before closing the connection, defaults to 5",
+                        type=int, default=5)
+
     args = parser.parse_args()
 
     s = Sender(args.address, args.port, args.file)
