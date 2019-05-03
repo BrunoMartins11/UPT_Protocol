@@ -4,7 +4,7 @@ import binascii
 msg type | seqno | data | checksum
 
 The message is 1472 bytes divided up into the following:
-- 5 bytes: msgtype
+- 5 bytes: type
 - 4 bytes: seqno
 - 1458 bytes: message/data
 - 2 bytes: checksum

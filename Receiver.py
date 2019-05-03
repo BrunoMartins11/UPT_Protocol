@@ -1,12 +1,14 @@
-import argparse
 import socket
+
 import time
+import argparse
+
 import Packet
 import Connection
 
 
 class Receiver:
-    def __init__(self, listenport=33122, timeout_t=3):
+    def __init__(self, listenport=33122, timeout_t=10):
         self.timeout = timeout_t
         self.last_cleanup = time.time()
         self.port = listenport
@@ -33,8 +35,8 @@ class Receiver:
 
                 if Packet.validate_checksum(message):
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
-                # timeout
-                if time.time() - self.last_cleanup >= self.timeout:
+
+                if time.time() - self.last_cleanup > self.timeout:
                     self.cleanup()
 
                 if self.connections.__len__() == 0:
@@ -93,10 +95,9 @@ class Receiver:
     def cleanup(self):
         for address in list(self.connections):
             conn = self.connections[address]
-            if time.time() - conn.updated >= self.timeout:
-                print(str(time.time() - conn.updated))
-                # conn.end()
-                # del self.connections[address]
+            if time.time() - conn.updated > self.timeout:
+                conn.end()
+                del self.connections[address]
         self.last_cleanup = time.time()
 
 
@@ -104,7 +105,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Receive files via a fast and secure UDP channel.",
                                      epilog="Unicorns powered this")
     parser.add_argument("-p", "--port", help="UDP port, defaults to 33122", type=int, default=33122)
-    parser.add_argument("-t", "--timeout", help="Timeout for each socket, defaults to 3s", type=int, default=3)
+    parser.add_argument("-t", "--timeout", help="Timeout for each socket, defaults to 3s", type=int, default=10)
     args = parser.parse_args()
 
     r = Receiver(args.port, args.timeout)
