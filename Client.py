@@ -23,11 +23,11 @@ class Client:
                 request = cmd[0]
             elif cmd[0] == 'get' and len(cmd) == 2:
                 port_c = randint(10000, 40000)
-                request = "get " + cmd[1] + " " + str(port_c)
+                request = "get {} {}".format(cmd[1], str(port_c))
                 action = lambda: Receiver(port_c).start()
             elif cmd[0] == 'put' and len(cmd) == 2:
                 port_s = randint(10000, 40000)
-                request = "put " + cmd[1] + " " + str(port_s)
+                request = "put {} {}".format(cmd[1], str(port_s))
                 action = lambda: Sender(self.server_addr, port_s, cmd[1]).start()
             elif cmd[0] == ':q':
                 exit()
@@ -36,7 +36,12 @@ class Client:
 
             self.send(request)
             if action is not None:
-                action()
+                try:
+                    action()
+                except TimeoutError:
+                    print("Request timed out")
+                except IOError:
+                    print("IO Error")
             if request == 'ls':
                 self.output()
 

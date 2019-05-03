@@ -62,7 +62,7 @@ class Sender:
                               (self.dest, self.dport))
                     self.msg_window[0][2] = True
                 elif self.current_state >= 3:
-                    exit()
+                    break
 
                 message = self.receive(self.rtimeout)
 
@@ -75,12 +75,9 @@ class Sender:
                     self.attempts -= 1
 
                 if self.attempts <= 0:
-                    exit()
-
-            except (KeyboardInterrupt, SystemExit):
-                exit()
-            except:
-                pass
+                    raise TimeoutError
+            except KeyboardInterrupt:
+                break
 
     def increment_state(self):
         self.current_state += 1
