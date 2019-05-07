@@ -36,8 +36,8 @@ class Server:
             if data[0] == 'ls':
                 output = check_output(['ls'])
             elif data[0] == 'get' and len(data) == 3:
-                port = int(data[2])
                 filename = data[1]
+                port = int(data[2])
                 Session(lambda: Sender(addr_c, port, filename).start()).start()
             elif data[0] == 'put' and len(data) == 3:
                 port = int(data[2])

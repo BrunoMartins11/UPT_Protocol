@@ -39,13 +39,14 @@ class Receiver:
                 if time.time() - self.last_cleanup > self.timeout:
                     self.cleanup()
 
-                if self.connections.__len__() == 0:
-                    exit()
+                if len(self.connections) == 0:
+                    break
 
             except socket.timeout:
                 self.cleanup()
-            except (KeyboardInterrupt, SystemExit):
-                exit()
+                raise TimeoutError
+            except KeyboardInterrupt:
+                break
             except ValueError:
                 pass
 
