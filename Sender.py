@@ -71,8 +71,9 @@ class Sender:
                     if Packet.validate_checksum(message):
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
-                    self.resend_data()
-                    self.attempts -= 1
+                    if self.current_state != 0:
+                        self.resend_data()
+                        self.attempts -= 1
 
                 if self.attempts <= 0:
                     exit()
