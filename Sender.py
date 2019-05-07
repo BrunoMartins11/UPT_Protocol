@@ -11,7 +11,6 @@ from Window import Window
 
 import utils as consts
 
-
 class Sender:
     def __init__(self, dest, port, filename, timeout_t=10):
         self.current_state = 0

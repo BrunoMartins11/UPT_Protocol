@@ -17,6 +17,29 @@ class Client:
 
     def start(self):
         while True:
+            cmd = input("> ").rstrip().split(" ")
+            action = None
+            request = ""
+
+            if cmd[0] == 'login' and len(cmd) == 3:
+                request = ' '.join(cmd)
+            elif cmd[0] == 'register' and len(cmd) == 3:
+                request = ' '.join(cmd)
+            else:
+                print('Invalid command')
+                continue
+
+            self.send(request)
+            output = self.sock.recv(4096).decode('utf-8').split(' ')
+            if output[0] == 'Valid' and len(output) == 2:
+                self.server_port = int(output[1])
+                self.session()
+                return
+            else:
+                print(' '.join(output))
+
+    def session(self):
+        while True:
             cmd = input("> ").split(" ")
             action = None
             request = ""
@@ -46,11 +69,15 @@ class Client:
                     print("Request timed out")
                 except IOError:
                     print("IO Error")
-            if request == 'ls':
-                self.output()
+
+            response = self.output()
+            print(response)
+            if 'Connection timed out' == response:
+                return
 
     def send(self, msg):
         self.sock.sendto(str.encode(msg, 'utf-8'), (self.server_addr, self.server_port))
 
     def output(self):
-        print(self.sock.recv(4096).decode('utf-8'))
+        return self.sock.recv(4096).decode('utf-8')
+
