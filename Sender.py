@@ -3,10 +3,10 @@ import os
 import socket
 
 import random
-from random import randint
 import argparse
 
 import Packet
+from Window import Window
 
 
 class Sender:
@@ -17,13 +17,8 @@ class Sender:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(None)
         self.sock.bind(('', random.randint(10000, 40000)))
-        self.infile = open(filename, "rb")
-        self.filesize = 0
-        self.msg_window = []  # [[eqno, data, sent]]
-        self.initial_sn = randint(0, 65535)
-        self.current_sn = self.initial_sn
+        self.window = Window(10, filename)  # [[seqno, data, sent]]
         self.rtimeout = timeout_t
-        self.filename = filename
         self.attempts = attempts_n
         self.MESSAGE_HANDLER = {
             'ack': self.handle_ack
@@ -42,7 +37,7 @@ class Sender:
         self.sock.sendto(message, address)
 
     def start(self):
-        self.load_file()
+        self.window.load_file()
 
         # 0: Transfer not started
         # 1: Transfer in progress
@@ -52,15 +47,15 @@ class Sender:
         while True:
             try:
                 if self.current_state == 0:
-                    self.send(Packet.make_packet('start', self.msg_window[0][0], self.msg_window[0][1]),
+                    self.send(Packet.make_packet('start', self.window.msg_window[0][0], self.window.msg_window[0][1]),
                               (self.dest, self.dport))
-                    self.msg_window[0][2] = True
+                    self.window.msg_window[0][2] = True
                 elif self.current_state == 1:
                     self.send_next_data()
                 elif self.current_state == 2:
-                    self.send(Packet.make_packet('end', self.msg_window[0][0], self.msg_window[0][1]),
+                    self.send(Packet.make_packet('end', self.window.msg_window[0][0], self.window.msg_window[0][1]),
                               (self.dest, self.dport))
-                    self.msg_window[0][2] = True
+                    self.window.msg_window[0][2] = True
                 elif self.current_state >= 3:
                     break
 
@@ -82,43 +77,6 @@ class Sender:
 
     def increment_state(self):
         self.current_state += 1
-
-    def load_file(self):
-        # seqno += number of bytes in the current packet
-
-        self.msg_window.append([self.current_sn, self.filename.encode('utf-8'), False])
-        self.initial_sn += len(self.filename.encode('utf-8'))
-        self.current_sn = self.initial_sn
-
-        with open(self.filename, 'rb') as sending_file:
-            self.filesize = os.stat(self.filename).st_size
-
-            while (self.msg_window.__len__() < 5) and (self.filesize > (self.current_sn - self.initial_sn)):
-                sending_file.seek(self.current_sn - self.initial_sn)
-                next_packet = sending_file.read(1458)
-                self.msg_window.append([self.current_sn, next_packet, False])
-                self.current_sn += len(next_packet)
-
-            if self.msg_window.__len__() < 5:
-                self.msg_window.append([self.current_sn, b'', False])  # 'end' packet
-
-    def update_sliding_window(self):
-        with open(self.filename, 'rb') as sending_file:
-            if self.msg_window.__len__() < 5:
-                while ((self.msg_window.__len__() < 5) and
-                       (self.filesize > (self.current_sn - self.initial_sn))):
-                    sending_file.seek(self.current_sn - self.initial_sn)
-                    next_packet = sending_file.read(1458)
-                    self.msg_window.append([self.current_sn, next_packet, False])
-                    self.current_sn += len(next_packet)
-            else:
-                pass
-
-        if self.current_state == 0:
-            self.increment_state()
-        if self.msg_window.__len__() <= 1:
-            self.increment_state()
-        pass
 
     def resend_data(self):
         try:
@@ -151,20 +109,7 @@ class Sender:
         pass
 
     def handle_ack(self, seqno, data):
-        temp_packet = []
-        temp_index = 0
-
-        for index in list(range(self.msg_window.__len__())):
-            if seqno == self.msg_window[index][0]:
-                temp_packet = self.msg_window[index]
-                temp_index = index
-                break
-
-        if len(temp_packet) > 0:
-            if self.msg_window[temp_index][2]:
-                del self.msg_window[temp_index]
-                self.update_sliding_window()
-        pass
+        self.window.ack(seqno, data)
 
     def _handle_other(self, seqno, data):
         pass
