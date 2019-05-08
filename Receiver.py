@@ -57,9 +57,7 @@ class Receiver:
         self.s.sendto(message, address)
 
     def send_ack(self, seqno, address):
-        m = b"".join([b'ack|', bytes(str(seqno).encode()), b'|'])
-        checksum = Packet.generate_checksum(m)
-        message = m + checksum
+        message = Packet.make_packet('ack', seqno, self.connections[address].wc)
         self.send(message, address)
 
     def handle_start(self, seqno, data, address):

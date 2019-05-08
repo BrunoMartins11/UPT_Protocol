@@ -3,6 +3,7 @@ import time
 
 class Connection:
     def __init__(self, host, port, start_seq, filename):
+        self.wc = 5
         self.updated = time.time()
         self.current_seqno = start_seq
         self.host = host
