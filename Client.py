@@ -82,8 +82,13 @@ class Client:
 
             self.sock.sendto(str.encode(request, 'utf-8'), (self.server_addr, self.server_port))
             response = self.sock.recv(4096)
-            # try catch
-            output = private_key.decrypt(response, PKCS1v15()).decode().split(' ')
+
+            try:
+                output = private_key.decrypt(response, PKCS1v15()).decode().split(' ')
+            except Exception:
+                print(response.decode())
+                continue
+
             if output[0] == 'Valid' and len(output) == 3:
                 self.server_port = int(output[1])
                 self.session(Fernet(str.encode(output[2])))
