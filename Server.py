@@ -78,14 +78,14 @@ class Server:
             addr_c, _ = client_address
             data = msg.decode('utf-8').split(" ")
             output = b'Invalid command'
-            user_logged_in = False
+            pub_key = None
 
             if data[0] == 'login' and len(data) == 3:
                 if data[1] in self.users and self.users[data[1]]['password'] == data[2]:
-                    user_logged_in = True
+                    pub_key = self.users[data[1]]['public_key']
                 else:
-                    output = b'Invalid username or password'
-
+                    self.sock.sendto(b'Invalid username or password', client_address)
+                    continue
             elif data[0] == 'register' and len(data) > 2:
                 if data[1] not in self.users:
                     pub_key = ' '.join(data[3:])
@@ -95,18 +95,25 @@ class Server:
                         'public_key': pub_key
                     }
                     self.store_users()
-                    public_key = cryptography.hazmat.primitives.serialization.load_pem_public_key(
-                        str.encode(pub_key),
-                        backend=default_backend()
-                    )
-                    # Generate symetric key
-                    simetric_key = Fernet.generate_key()
-                    port = random.randint(10000, 40000)
-                    msg = 'Valid {} {}'.format(port, simetric_key.decode())
-                    output = public_key.encrypt(str.encode(msg), PKCS1v15())
-                    Session(client_address, port, Fernet(simetric_key)).start()
                 else:
-                    output = b'Username taken'
+                    self.sock.sendto(b'Username taken', client_address)
+                    continue
+
+            if pub_key is None:
+                self.sock.sendto(b'Invalid command', client_address)
+                continue
+
+            public_key = cryptography.hazmat.primitives.serialization.load_pem_public_key(
+                str.encode(pub_key),
+                backend=default_backend()
+            )
+
+            # Generate symetric key
+            simetric_key = Fernet.generate_key()
+            port = random.randint(10000, 40000)
+            msg = 'Valid {} {}'.format(port, simetric_key.decode())
+            output = public_key.encrypt(str.encode(msg), PKCS1v15())
+            Session(client_address, port, Fernet(simetric_key)).start()
 
             self.sock.sendto(output, client_address)
 

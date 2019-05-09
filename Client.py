@@ -6,6 +6,7 @@ from time import sleep
 from Sender import Sender
 from Receiver import Receiver
 
+import cryptography
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import NoEncryption, Encoding, PrivateFormat, PublicFormat
@@ -57,7 +58,16 @@ class Client:
             private_key = None
 
             if cmd[0] == 'login' and len(cmd) == 3:
-                request = ' '.join(cmd)
+                if cmd[1] in self.keys:
+                    request = ' '.join(cmd)
+                    private_key = cryptography.hazmat.primitives.serialization.load_pem_private_key(
+                            data=str.encode(self.keys[cmd[1]]['private_key']),
+                            password=None,
+                            backend=default_backend()
+                    )
+                else:
+                    print('Invalid username')
+                    continue
             elif cmd[0] == 'register' and len(cmd) == 3:
                 if cmd[1] not in self.keys:
                     private_key, public_bytes = self.generate_user(cmd[1], cmd[2])
@@ -72,6 +82,7 @@ class Client:
 
             self.sock.sendto(str.encode(request, 'utf-8'), (self.server_addr, self.server_port))
             response = self.sock.recv(4096)
+            # try catch
             output = private_key.decrypt(response, PKCS1v15()).decode().split(' ')
             if output[0] == 'Valid' and len(output) == 3:
                 self.server_port = int(output[1])
