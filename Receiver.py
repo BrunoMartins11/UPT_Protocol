@@ -2,9 +2,18 @@ import socket
 
 import time
 import argparse
+import os
 
 import Packet
 import Connection
+
+def decrypt_receiver(filename, key):
+    enc_file = 'enc_{}'.format(filename)
+    print('[Receiver]: Decrypting "{}"'.format(enc_file))
+    f = open(enc_file, "rb").read()
+    f = key.decrypt(f)
+    open(filename, "wb").write(f)
+    os.remove(enc_file)
 
 
 class Receiver:
