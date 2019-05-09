@@ -42,6 +42,7 @@ class Receiver:
                     self.cleanup()
 
                 if len(self.connections) == 0:
+                    self.s.close()
                     break
 
             except socket.timeout:
