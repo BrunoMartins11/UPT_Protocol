@@ -29,6 +29,7 @@ class Client:
                 port_s = randint(10000, 40000)
                 request = "put {} {}".format(cmd[1], str(port_s))
                 action = lambda: Sender(self.server_addr, port_s, cmd[1]).start()
+                print("Sender to addr: {} and port {}".format(self.server_addr, str(port_s)))
             elif cmd[0] == ':q':
                 exit()
             else:
