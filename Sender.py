@@ -47,9 +47,9 @@ class Sender:
         print("[Sender]: Trying to send packet")
         if address is None:
             address = (self.dest, self.dport)
-        #if random.randint(0, 4) > 0:
-            #print("[Sender]: Sent packet")
-        self.sock.sendto(message, address)
+        if random.randint(0, 4) > 0:
+            print("[Sender]: SENT PACKET")
+            self.sock.sendto(message, address)
 
     def load_file(self):
         # seqno += number of bytes in the current packet
@@ -161,7 +161,7 @@ class Sender:
         print("[Sender]: rwindow " + str(int(data)))
         update = self.window.ack(seqno)
         if update:
-            print("[Sender]: acked came true " + str(data))
+            print("[Sender]: acked came true " + data.decode())
             self.update_sliding_window()
 
     def _handle_other(self, seqno, data):
