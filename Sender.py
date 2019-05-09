@@ -117,6 +117,7 @@ class Sender:
                     self.window.msg_window[0][2] = True
                 elif self.current_state >= 3:
                     print("reached state 3")
+                    self.sock.close()
                     break
 
                 message = self.receive(self.rtimeout)

@@ -9,7 +9,7 @@ class Connection:
         self.host = host
         self.port = port
         self.max_buf_size = 5
-        self.outfile = open("reV_{0}".format(filename), "wb")
+        self.outfile = open(filename, "wb")
         self.seqnums = {}  # single instance of each seqno
 
     def ack(self, seqno, data):
