@@ -52,11 +52,9 @@ class Sender:
             return None
 
     def send(self, message, address=None):
-        print("[Sender]: Trying to send packet")
         if address is None:
             address = (self.dest, self.dport)
         if random.randint(0, 4) > 0:
-            print("[Sender]: SENT PACKET")
             self.sock.sendto(message, address)
 
     def load_file(self):
@@ -75,15 +73,12 @@ class Sender:
                 next_packet = sending_file.read(consts.DATA_SIZE)
                 self.window.push([self.window.current_sn, next_packet, False])
                 self.window.current_sn += len(next_packet)
-            print("[Sender]: Loaded file: " + str(len(self.window.msg_window)) + " packets")
 
     def update_sliding_window(self):
-        print("[Sender]: Updating sliding window")
         with open(self.filename, 'rb') as sending_file:
             while (self.window.can_send(self.rwindow) and
                    (self.filesize > (self.window.current_sn - self.window.initial_sn))):
 
-                print("[Sender]: Added another packet")
                 sending_file.seek(self.window.current_sn - self.window.initial_sn)
                 next_packet = sending_file.read(consts.DATA_SIZE)
                 self.window.push([self.window.current_sn, next_packet, False])
@@ -94,7 +89,6 @@ class Sender:
         if self.current_state == 1:
             self.total_packets -= 1
             if self.total_packets == 0:
-                print("[Sender]: Adding end packet: " + str(len(self.window.msg_window)) + " packets")
                 self.window.push([self.window.current_sn, b'', False])  # 'end' packet
                 self.increment_state()
         elif self.current_state == 2:
@@ -111,20 +105,17 @@ class Sender:
         while True:
             try:
                 if self.current_state == 0:
-                    print("[Sender]: Sending start")
                     self.send(Packet.make_packet('start', self.window.msg_window[0][0], self.window.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.window.msg_window[0][2] = True
                 elif self.current_state == 1:
-                    print("[Sender]: Sending data")
                     self.send_data()
                 elif self.current_state == 2:
-                    print("[Sender]: Sending end")
                     self.send(Packet.make_packet('end', self.window.msg_window[0][0], self.window.msg_window[0][1]),
                               (self.dest, self.dport))
                     self.window.msg_window[0][2] = True
                 elif self.current_state >= 3:
-                    print("reached state 3")
+                    print("done")
                     self.sock.close()
                     break
 
@@ -133,7 +124,6 @@ class Sender:
                 if message:
                     msg_type, seqno, data, checksum = Packet.split_packet(message)
                     if Packet.validate_checksum(message):
-                        print("[Sender]: Got valid message")
                         self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data)
                 else:
                     self.window.timeout()
@@ -146,31 +136,24 @@ class Sender:
 
     def increment_state(self):
         self.current_state += 1
-        print("[Sender]: Incrementing state to " + str(self.current_state))
 
     def send_data(self):
         seqs = []
         if self.window.action == consts.TRANS:
-            print("[Sender]: Transmiting data")
             seqs = self.window.to_send()
         elif self.window.action == consts.RETRANS:
-            print("[Sender]: Retransmiting data")
             seqs = self.window.to_ack()
 
         for index in seqs:
             msg, i = index
-            print("[Sender]: Sending pack")
             self.send(Packet.make_packet('data', self.window.msg_window[i][0], self.window.msg_window[i][1]),
                       (self.dest, self.dport))
             self.window.msg_window[i][2] = True
 
     def handle_ack(self, seqno, data):
-        print("[Sender]: Handling ack")
         self.rwindow = int(data)
-        print("[Sender]: rwindow " + str(int(data)))
         update = self.window.ack(seqno)
         if update:
-            print("[Sender]: acked came true " + data.decode())
             self.update_sliding_window()
 
     def _handle_other(self, seqno, data):
