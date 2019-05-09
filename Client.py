@@ -62,7 +62,6 @@ class Client:
             self.send(request)
             if action is not None:
                 try:
-                    sleep(0.5)
                     action()
                 except TimeoutError:
                     print("Request timed out")
