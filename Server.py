@@ -8,10 +8,16 @@ import json
 from Sender import Sender
 from Receiver import Receiver
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography.fernet import Fernet
+import cryptography.hazmat.primitives.serialization
+
 class Session(Thread):
-    def __init__(self, client_address, port):
+    def __init__(self, client_address, port, key):
         Thread.__init__(self)
         self.client_address = client_address
+        self.key = key
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(None)
         self.sock.bind(('', port))
@@ -25,10 +31,10 @@ class Session(Thread):
                 self.sock.sendto(b'Connection timed out', self.client_address)
                 print("Client at {} timed out".format(self.client_address))
                 exit()
-            if client_address != self.client_address:
-                continue
+            self.client_address = client_address
             self.sock.settimeout(None)
             addr_c, _ = client_address
+            msg = self.key.decrypt(msg)
             data = msg.decode('utf-8').split(" ")
             output = b'Invalid command'
 
@@ -44,7 +50,7 @@ class Session(Thread):
                 Receiver(port).start()
                 output = b'Received'
 
-            self.sock.sendto(output, client_address)
+            self.sock.sendto(self.key.encrypt(output), client_address)
 
 
 class Server:
@@ -80,18 +86,27 @@ class Server:
                 else:
                     output = b'Invalid username or password'
 
-            elif data[0] == 'register' and len(data) == 3:
+            elif data[0] == 'register' and len(data) > 2:
                 if data[1] not in self.users:
-                    self.users[data[1]] = { 'name': data[1], 'password': data[2] }
+                    pub_key = ' '.join(data[3:])
+                    self.users[data[1]] = {
+                        'name': data[1],
+                        'password': data[2],
+                        'public_key': pub_key
+                    }
                     self.store_users()
-                    user_logged_in = True
+                    public_key = cryptography.hazmat.primitives.serialization.load_pem_public_key(
+                        str.encode(pub_key),
+                        backend=default_backend()
+                    )
+                    # Generate symetric key
+                    simetric_key = Fernet.generate_key()
+                    port = random.randint(10000, 40000)
+                    msg = 'Valid {} {}'.format(port, simetric_key.decode())
+                    output = public_key.encrypt(str.encode(msg), PKCS1v15())
+                    Session(client_address, port, Fernet(simetric_key)).start()
                 else:
                     output = b'Username taken'
-
-            if user_logged_in:
-                port = random.randint(10000, 40000)
-                Session(client_address, port).start()
-                output = str.encode('Valid {}'.format(port))
 
             self.sock.sendto(output, client_address)
 
