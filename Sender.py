@@ -47,9 +47,9 @@ class Sender:
         print("[Sender]: Trying to send packet")
         if address is None:
             address = (self.dest, self.dport)
-        if random.randint(0, 4) > 0:
-            print("[Sender]: SENT PACKET")
-            self.sock.sendto(message, address)
+        #if random.randint(0, 4) > 0:
+            #print("[Sender]: SENT PACKET")
+        self.sock.sendto(message, address)
 
     def load_file(self):
         # seqno += number of bytes in the current packet
