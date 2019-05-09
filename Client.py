@@ -1,10 +1,14 @@
 import socket
-
+import json
 from random import randint
 from time import sleep
 
 from Sender import Sender
 from Receiver import Receiver
+
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import NoEncryption, Encoding, PrivateFormat, PublicFormat
 
 
 class Client:
@@ -14,6 +18,34 @@ class Client:
         self.port = m_port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(('', self.port))
+        self.load_keys()
+
+    def load_keys(self):
+        try:
+            self.keys = json.load(open(".keys", "r"))
+        except IOError:
+            self.keys = {}
+
+    def store_keys(self):
+        json.dump(self.keys, open(".keys", "w"))
+
+
+    def generate_user(self, user, password):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        private_bytes = private_key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())
+        public_bytes = private_key.public_key().public_bytes(Encoding.PEM, PublicFormat.PKCS1)
+        self.keys[user] = {
+            'password': password,
+            'private_key': private_bytes.decode(),
+            'public_key': public_bytes.decode(),
+        }
+        self.store_keys()
+        return public_bytes.decode()
+
 
     def start(self):
         while True:
@@ -24,7 +56,13 @@ class Client:
             if cmd[0] == 'login' and len(cmd) == 3:
                 request = ' '.join(cmd)
             elif cmd[0] == 'register' and len(cmd) == 3:
-                request = ' '.join(cmd)
+                if cmd[1] not in self.keys:
+                    public_key = self.generate_user(cmd[1], cmd[2])
+                    cmd.append(public_key)
+                    request = ' '.join(cmd)
+                else:
+                    print('Username taken')
+                    continue
             else:
                 print('Invalid command')
                 continue
