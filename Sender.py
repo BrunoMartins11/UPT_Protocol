@@ -47,9 +47,9 @@ class Sender:
         print("[Sender]: Trying to send packet")
         if address is None:
             address = (self.dest, self.dport)
-        if random.randint(0, 4) > 0:
-            print("[Sender]: Sent packet")
-            self.sock.sendto(message, address)
+        #if random.randint(0, 4) > 0:
+            #print("[Sender]: Sent packet")
+        self.sock.sendto(message, address)
 
     def load_file(self):
         # seqno += number of bytes in the current packet
@@ -85,7 +85,12 @@ class Sender:
 
         if self.current_state == 0:
             self.increment_state()
-        if len(self.window.msg_window) <= 1:
+        if self.current_state == 1:
+            self.total_packets -= 1
+            if self.total_packets == 0:
+                self.window.push([self.window.current_sn, b'', False])  # 'end' packet
+                self.increment_state()
+        elif self.current_state == 2:
             self.increment_state()
 
     def start(self):
@@ -112,6 +117,7 @@ class Sender:
                               (self.dest, self.dport))
                     self.window.msg_window[0][2] = True
                 elif self.current_state >= 3:
+                    print("reached state 3")
                     break
 
                 message = self.receive(self.rtimeout)
@@ -131,8 +137,8 @@ class Sender:
                 break
 
     def increment_state(self):
-        print("[Sender]: Incrementing state")
         self.current_state += 1
+        print("[Sender]: Incrementing state to " + str(self.current_state))
 
     def send_data(self):
         seqs = []
