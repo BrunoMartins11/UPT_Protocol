@@ -28,11 +28,13 @@ class Receiver:
         }
 
     def start(self):
+        print("Started")
         while True:
             try:
+                print("Trying to receive")
                 message, address = self.receive()
                 msg_type, seqno, data, checksum = Packet.split_packet(message)
-
+                print("Got packet")
                 if Packet.validate_checksum(message):
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
 
@@ -61,27 +63,35 @@ class Receiver:
         self.send(message, address)
 
     def handle_start(self, seqno, data, address):
+        print("Sarting handling start")
         if address not in self.connections:
             self.connections[address] = Connection.Connection(address[0], address[1], seqno, data.decode())
         conn = self.connections[address]
-        ackno, res_data = conn.ack(seqno, data)
-        self.send_ack(ackno, address)
+        acks = conn.ack(seqno, data)
+        for values in acks:
+            print("Sending start ack {}".format(str(values)))
+            ackno, res_data = values
+            self.send_ack(ackno, address)
 
     def handle_data(self, seqno, data, address):
         if address in self.connections:
             conn = self.connections[address]
-            ackno, res_data = conn.ack(seqno, data)
-            for l in res_data:
-                conn.record(l)
-            self.send_ack(ackno, address)
+            acks = conn.ack(seqno, data)
+            for values in acks:
+                ackno, res_data = values
+                for l in res_data:
+                    conn.record(l)
+                self.send_ack(ackno, address)
 
     def handle_end(self, seqno, data, address):
         if address in self.connections:
             conn = self.connections[address]
-            ackno, res_data = conn.ack(seqno, data)
-            for l in res_data:
-                conn.record(l)
-            self.send_ack(ackno, address)
+            acks = conn.ack(seqno, data)
+            for values in acks:
+                ackno, res_data = values
+                for l in res_data:
+                    conn.record(l)
+                self.send_ack(ackno, address)
             conn.end()
             del self.connections[address]
 
