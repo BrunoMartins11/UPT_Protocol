@@ -13,19 +13,23 @@ class Connection:
         self.seqnums = {}  # single instance of each seqno
 
     def ack(self, seqno, data):
-        res_data = []
         if (seqno == self.current_seqno) and len(self.seqnums) <= self.max_buf_size:
+            p = []
             self.seqnums[seqno] = data
-            self.current_seqno += len(data)
-            res_data.append(self.seqnums[seqno])
-            del self.seqnums[seqno]
+            for key in sorted(self.seqnums.keys()):
+                if key == self.current_seqno:
+                    res_data = []
+                    self.current_seqno += len(data)
+                    res_data.append(self.seqnums[key])
+                    p.append(((self.current_seqno - len(data)), res_data))
+                    del self.seqnums[key]
+
             self.updated = time.time()
-            # return seqno of the last packet received
-            return [((self.current_seqno - len(data)), res_data)]
+            return p
 
         elif (seqno < self.current_seqno):
             self.updated = time.time()
-            return [(seqno, res_data)]
+            return [(seqno, [])]
 
         elif(seqno > self.current_seqno) and len(self.seqnums) < self.max_buf_size:
             self.updated = time.time()
