@@ -67,9 +67,7 @@ class Sender:
                 next_packet = sending_file.read(consts.DATA_SIZE)
                 self.window.push([self.window.current_sn, next_packet, False])
                 self.window.current_sn += len(next_packet)
-
-            if self.window.can_send(self.rwindow):
-                self.window.push([self.window.current_sn, b'', False])  # 'end' packet
+            print("[Sender]: Loaded file: " + str(len(self.window.msg_window)) + " packets")
 
     def update_sliding_window(self):
         print("[Sender]: Updating sliding window")
@@ -88,6 +86,7 @@ class Sender:
         if self.current_state == 1:
             self.total_packets -= 1
             if self.total_packets == 0:
+                print("[Sender]: Adding end packet: " + str(len(self.window.msg_window)) + " packets")
                 self.window.push([self.window.current_sn, b'', False])  # 'end' packet
                 self.increment_state()
         elif self.current_state == 2:
