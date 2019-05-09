@@ -9,6 +9,8 @@ from Receiver import Receiver
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import NoEncryption, Encoding, PrivateFormat, PublicFormat
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography.fernet import Fernet
 
 
 class Client:
@@ -44,7 +46,7 @@ class Client:
             'public_key': public_bytes.decode(),
         }
         self.store_keys()
-        return public_bytes.decode()
+        return private_key, public_bytes
 
 
     def start(self):
@@ -52,13 +54,14 @@ class Client:
             cmd = input("> ").rstrip().split(" ")
             action = None
             request = ""
+            private_key = None
 
             if cmd[0] == 'login' and len(cmd) == 3:
                 request = ' '.join(cmd)
             elif cmd[0] == 'register' and len(cmd) == 3:
                 if cmd[1] not in self.keys:
-                    public_key = self.generate_user(cmd[1], cmd[2])
-                    cmd.append(public_key)
+                    private_key, public_bytes = self.generate_user(cmd[1], cmd[2])
+                    cmd.append(public_bytes.decode())
                     request = ' '.join(cmd)
                 else:
                     print('Username taken')
@@ -67,16 +70,17 @@ class Client:
                 print('Invalid command')
                 continue
 
-            self.send(request)
-            output = self.sock.recv(4096).decode('utf-8').split(' ')
-            if output[0] == 'Valid' and len(output) == 2:
+            self.sock.sendto(str.encode(request, 'utf-8'), (self.server_addr, self.server_port))
+            response = self.sock.recv(4096)
+            output = private_key.decrypt(response, PKCS1v15()).decode().split(' ')
+            if output[0] == 'Valid' and len(output) == 3:
                 self.server_port = int(output[1])
-                self.session()
+                self.session(Fernet(str.encode(output[2])))
                 return
             else:
-                print(' '.join(output))
+                print('Error', ' '.join(output))
 
-    def session(self):
+    def session(self, key):
         while True:
             cmd = input("> ").split(" ")
             action = None
@@ -97,7 +101,7 @@ class Client:
             else:
                 continue
 
-            self.send(request)
+            self.send(request, key)
             if action is not None:
                 try:
                     action()
@@ -106,14 +110,16 @@ class Client:
                 except IOError:
                     print("IO Error")
 
-            response = self.output()
+            response = self.output(key)
             print(response)
             if 'Connection timed out' == response:
                 return
 
-    def send(self, msg):
-        self.sock.sendto(str.encode(msg, 'utf-8'), (self.server_addr, self.server_port))
+    def send(self, msg, key):
+        msg = key.encrypt(str.encode(msg, 'utf-8'))
+        self.sock.sendto(msg, (self.server_addr, self.server_port))
 
-    def output(self):
-        return self.sock.recv(4096).decode('utf-8')
+    def output(self, key):
+        response = self.sock.recv(4096)
+        return key.decrypt(response).decode()
 
