@@ -36,14 +36,16 @@ class Receiver:
                 if Packet.validate_checksum(message):
                     self.MESSAGE_HANDLER.get(msg_type, self._handle_other)(seqno, data, address)
 
-                if time.time() - self.last_cleanup > self.timeout:
-                    self.cleanup()
+                #if time.time() - self.last_cleanup > self.timeout:
+                 #   self.cleanup()
 
                 if len(self.connections) == 0:
                     break
 
             except socket.timeout:
+                continue
                 self.cleanup()
+                print("cona")
                 raise TimeoutError
             except KeyboardInterrupt:
                 break
@@ -57,7 +59,7 @@ class Receiver:
         self.s.sendto(message, address)
 
     def send_ack(self, seqno, address):
-        message = Packet.make_packet('ack', seqno, self.connections[address].wc)
+        message = Packet.make_packet('ack', seqno, str(self.connections[address].wc).encode())
         self.send(message, address)
 
     def handle_start(self, seqno, data, address):
