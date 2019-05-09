@@ -5,8 +5,8 @@ from threading import Thread
 import socket
 import json
 
-from Sender import Sender
-from Receiver import Receiver
+from Sender import Sender, encrypted_sender
+from Receiver import Receiver, decrypt_receiver
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
@@ -43,11 +43,12 @@ class Session(Thread):
             elif data[0] == 'get' and len(data) == 3:
                 filename = data[1]
                 port = int(data[2])
-                Sender(addr_c, port, filename).start()
+                encrypted_sender(addr_c, port, filename, self.key)
                 output = b'Sent'
             elif data[0] == 'put' and len(data) == 3:
                 port = int(data[2])
                 Receiver(port).start()
+                decrypt_receiver(data[1], self.key)
                 output = b'Received'
 
             self.sock.sendto(self.key.encrypt(output), client_address)

@@ -3,8 +3,8 @@ import json
 from random import randint
 from time import sleep
 
-from Sender import Sender
-from Receiver import Receiver
+from Sender import Sender, encrypted_sender
+from Receiver import Receiver, decrypt_receiver
 
 import cryptography
 from cryptography.hazmat.backends import default_backend
@@ -108,10 +108,12 @@ class Client:
                 port_c = randint(10000, 40000)
                 request = "get {} {}".format(cmd[1], str(port_c))
                 action = lambda: Receiver(port_c).start()
+                is_sender = False
             elif cmd[0] == 'put' and len(cmd) == 2:
                 port_s = randint(10000, 40000)
                 request = "put {} {}".format(cmd[1], str(port_s))
-                action = lambda: Sender(self.server_addr, port_s, cmd[1]).start()
+                action = lambda: encrypted_sender(self.server_addr, port_s, cmd[1], key)
+                is_sender = True
             elif cmd[0] == ':q':
                 exit()
             else:
@@ -120,11 +122,15 @@ class Client:
             self.send(request, key)
             if action is not None:
                 try:
+                    if is_sender:
+                        sleep(0.5)
                     action()
+                    if not is_sender:
+                        decrypt_receiver(cmd[1], key)
                 except TimeoutError:
                     print("Request timed out")
-                except IOError:
-                    print("IO Error")
+                except IOError as e:
+                    print("IO Error: {}".format(e))
 
             response = self.output(key)
             print(response)

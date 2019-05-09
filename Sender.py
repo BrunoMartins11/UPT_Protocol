@@ -11,6 +11,15 @@ from Window import Window
 
 import utils as consts
 
+def encrypted_sender(dest, port, filename, key):
+    print('[Sender]: Encrypting "{}"'.format(filename))
+    f = open(filename, "rb").read()
+    f = key.encrypt(f)
+    new_name = 'enc_{}'.format(filename)
+    open(new_name, "wb").write(f)
+    Sender(dest, port, new_name).start()
+    os.remove('enc_{}'.format(filename))
+
 class Sender:
     def __init__(self, dest, port, filename, timeout_t=10):
         self.current_state = 0
