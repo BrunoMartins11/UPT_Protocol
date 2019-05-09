@@ -4,7 +4,7 @@ from random import randint
 from time import sleep
 
 from Sender import Sender, encrypted_sender
-from Receiver import Receiver, decrypt_receiver
+from Receiver import Receiver, encrypted_receiver
 
 import cryptography
 from cryptography.hazmat.backends import default_backend
@@ -107,7 +107,7 @@ class Client:
             elif cmd[0] == 'get' and len(cmd) == 2:
                 port_c = randint(10000, 40000)
                 request = "get {} {}".format(cmd[1], str(port_c))
-                action = lambda: Receiver(port_c).start()
+                action = lambda: encrypted_receiver(port_c, cmd[1], key)
                 is_sender = False
             elif cmd[0] == 'put' and len(cmd) == 2:
                 port_s = randint(10000, 40000)
@@ -125,8 +125,6 @@ class Client:
                     if is_sender:
                         sleep(0.5)
                     action()
-                    if not is_sender:
-                        decrypt_receiver(cmd[1], key)
                 except TimeoutError:
                     print("Request timed out")
                 except IOError as e:

@@ -7,7 +7,8 @@ import os
 import Packet
 import Connection
 
-def decrypt_receiver(filename, key):
+def encrypted_receiver(port, filename, key):
+    Receiver(port).start()
     enc_file = 'enc_{}'.format(filename)
     print('[Receiver]: Decrypting "{}"'.format(enc_file))
     f = open(enc_file, "rb").read()

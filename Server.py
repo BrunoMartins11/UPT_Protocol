@@ -6,7 +6,7 @@ import socket
 import json
 
 from Sender import Sender, encrypted_sender
-from Receiver import Receiver, decrypt_receiver
+from Receiver import Receiver, encrypted_receiver
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
@@ -47,8 +47,7 @@ class Session(Thread):
                 output = b'Sent'
             elif data[0] == 'put' and len(data) == 3:
                 port = int(data[2])
-                Receiver(port).start()
-                decrypt_receiver(data[1], self.key)
+                encrypted_receiver(port, data[1], self.key)
                 output = b'Received'
 
             self.sock.sendto(self.key.encrypt(output), client_address)
