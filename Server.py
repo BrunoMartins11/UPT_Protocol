@@ -41,6 +41,7 @@ class Server:
                 Session(lambda: Sender(addr_c, port, filename).start()).start()
             elif data[0] == 'put' and len(data) == 3:
                 port = int(data[2])
+                print("Receiver in port {}".format(str(port)))
                 Session(lambda: Receiver(port).start()).start()
             else:
                 continue

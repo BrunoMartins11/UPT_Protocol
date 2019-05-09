@@ -8,12 +8,12 @@ import Connection
 
 
 class Receiver:
-    def __init__(self, listenport=33122, timeout_t=10):
+    def __init__(self, listenport=33122, timeout_t=30):
         self.timeout = timeout_t
         self.last_cleanup = time.time()
+
         self.port = listenport
         self.host = ''
-
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.s.settimeout(timeout_t)
@@ -57,9 +57,7 @@ class Receiver:
         self.s.sendto(message, address)
 
     def send_ack(self, seqno, address):
-        m = b"".join([b'ack|', bytes(str(seqno).encode()), b'|'])
-        checksum = Packet.generate_checksum(m)
-        message = m + checksum
+        message = Packet.make_packet('ack', seqno, str(self.connections[address].wc).encode())
         self.send(message, address)
 
     def handle_start(self, seqno, data, address):
@@ -94,9 +92,10 @@ class Receiver:
         pass
 
     def cleanup(self):
+        now = time.time()
         for address in list(self.connections):
             conn = self.connections[address]
-            if time.time() - conn.updated > self.timeout:
+            if now - conn.updated > self.timeout:
                 conn.end()
                 del self.connections[address]
         self.last_cleanup = time.time()

@@ -1,5 +1,7 @@
 import socket
+
 from random import randint
+from time import sleep
 
 from Sender import Sender
 from Receiver import Receiver
@@ -24,11 +26,11 @@ class Client:
             elif cmd[0] == 'get' and len(cmd) == 2:
                 port_c = randint(10000, 40000)
                 request = "get {} {}".format(cmd[1], str(port_c))
-                action = lambda: Receiver(port_c).start()
+                action, s = lambda: Receiver(port_c).start(), False
             elif cmd[0] == 'put' and len(cmd) == 2:
                 port_s = randint(10000, 40000)
                 request = "put {} {}".format(cmd[1], str(port_s))
-                action = lambda: Sender(self.server_addr, port_s, cmd[1]).start()
+                action, s = lambda: Sender(self.server_addr, port_s, cmd[1]).start(), True
             elif cmd[0] == ':q':
                 exit()
             else:
@@ -37,7 +39,9 @@ class Client:
             self.send(request)
             if action is not None:
                 try:
-                    action()
+                    sleep(0.5)
+                    if s:
+                        action()
                 except TimeoutError:
                     print("Request timed out")
                 except IOError:
