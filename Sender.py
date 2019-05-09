@@ -159,7 +159,7 @@ class Sender:
     def handle_ack(self, seqno, data):
         print("[Sender]: Handling ack")
         self.rwindow = int(data)
-        print("[Sender]: rwindow " + str(data))
+        print("[Sender]: rwindow " + str(int(data)))
         update = self.window.ack(seqno)
         if update:
             print("[Sender]: acked came true " + str(data))
